@@ -5,13 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n api,web \"npm run dev:api\" \"npm run dev:web\"",
-    "dev:api": "PORT=4174 tsx server/index.ts",
+    "dev:api": "tsx server/index.ts",
     "dev:web": "ng serve --host 127.0.0.1 --port 4173 --proxy-config proxy.conf.json",
     "build": "npm run typecheck:server && ng build",
     "test": "ng test --no-watch --no-progress && npm run test:server",
     "test:server": "vitest run server/data/session-search.spec.ts server/services/session-cleanup.service.spec.ts server/services/database-maintenance.service.spec.ts",
     "typecheck:server": "tsc --project tsconfig.server.json",
-    "start": "NODE_ENV=production tsx server/index.ts"
+    "start": "tsx server/production.ts"
   },
   "dependencies": {
     "@angular/common": "^22.2.4",

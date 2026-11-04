@@ -1,5 +1,5 @@
 import { TestBed } from "@angular/core/testing"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { CleanupPreview } from "../models/session.models"
 import { CleanupDialogComponent } from "./cleanup-dialog.component"
 
@@ -32,6 +32,8 @@ describe("CleanupDialogComponent", () => {
   let fixture: ReturnType<typeof TestBed.createComponent<CleanupDialogComponent>>
 
   beforeEach(() => {
+    Object.defineProperty(HTMLDialogElement.prototype, "showModal", { configurable: true, value: vi.fn() })
+    Object.defineProperty(HTMLDialogElement.prototype, "close", { configurable: true, value: vi.fn() })
     TestBed.configureTestingModule({ imports: [CleanupDialogComponent] })
     fixture = TestBed.createComponent(CleanupDialogComponent)
     fixture.componentRef.setInput("preview", preview)
@@ -39,6 +41,21 @@ describe("CleanupDialogComponent", () => {
   })
 
   afterEach(() => fixture.destroy())
+
+  it("opens modally and only allows Escape when deletion is idle", () => {
+    const close = vi.fn()
+    fixture.componentInstance.close.subscribe(close)
+    const dialog = fixture.nativeElement.querySelector("dialog")
+    expect(dialog.showModal).toHaveBeenCalled()
+    fixture.componentRef.setInput("loading", true)
+    fixture.detectChanges()
+    dialog.dispatchEvent(new Event("cancel", { cancelable: true }))
+    expect(close).not.toHaveBeenCalled()
+    fixture.componentRef.setInput("loading", false)
+    fixture.detectChanges()
+    dialog.dispatchEvent(new Event("cancel", { cancelable: true }))
+    expect(close).toHaveBeenCalledOnce()
+  })
 
   it("emits the selected cleanup IDs", () => {
     let selection: string[] = []

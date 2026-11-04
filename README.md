@@ -4,7 +4,17 @@ A local dashboard for finding and cleaning up OpenCode sessions across projects.
 
 ## Run locally
 
-Requirements: Node.js 24.15+ and a working OpenCode CLI installation.
+Requirements: Node.js 24.15+ and **OpenCode 2.x** installed and available on your PATH.
+
+**This version of Session Keeper supports OpenCode 2.x only. OpenCode 1.x and older are not supported** and may fail to connect or discover the database.
+
+Before connecting, check your installed version:
+
+```sh
+opencode --version
+```
+
+If it reports a version older than 2.x, upgrade to OpenCode 2, restart Session Keeper, and connect again.
 
 ```sh
 npm install

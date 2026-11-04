@@ -1,6 +1,7 @@
 import { HttpErrorResponse, httpResource } from "@angular/common/http"
 import { Injectable, computed, inject, signal } from "@angular/core"
 import { ArchiveFilter, ContentSearchResponse, DatabaseCompactionProgress, DatabaseFootprint, Project, SearchMode, Session, SessionRelationship, SessionsResponse } from "../models/session.models"
+import { ConfirmationService } from "./confirmation.service"
 import { SessionApiService } from "./session-api.service"
 
 const EMPTY_DATABASE: DatabaseFootprint = {
@@ -30,6 +31,7 @@ interface ContentSearchRequest {
 
 @Injectable({ providedIn: "root" })
 export class SessionDashboardStore {
+  private readonly confirmation = inject(ConfirmationService)
   private readonly api = inject(SessionApiService)
 
   readonly connected = signal(false)
@@ -199,7 +201,12 @@ export class SessionDashboardStore {
     }
     const childCount = this.childCounts()[session.id] ?? 0
     const childNote = childCount > 0 ? ` This also deletes ${childCount} child conversation${childCount === 1 ? "" : "s"}.` : ""
-    if (!window.confirm(`Permanently delete “${session.title || "Untitled conversation"}”?${childNote} This cannot be undone.`)) return
+    if (!await this.confirmation.confirm({
+      title: "Delete conversation?",
+      message: `Permanently delete “${session.title || "Untitled conversation"}”?${childNote} This cannot be undone.`,
+      confirmLabel: "Delete conversation",
+      danger: true,
+    })) return
     this.uiError.set("")
     try {
       const result = await this.api.deleteSession(session.id)

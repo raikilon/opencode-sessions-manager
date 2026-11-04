@@ -1,6 +1,7 @@
 import { HttpErrorResponse, httpResource } from "@angular/common/http"
 import { Injectable, computed, inject, signal } from "@angular/core"
 import { DatabaseBackupInfo, DatabaseCompactionProgress, DatabaseCompactionResult } from "../models/session.models"
+import { ConfirmationService } from "./confirmation.service"
 import { SessionApiService } from "./session-api.service"
 import { SessionDashboardStore } from "./session-dashboard.store"
 
@@ -21,6 +22,7 @@ type StepState = "pending" | "active" | "done" | "failed"
 
 @Injectable({ providedIn: "root" })
 export class DatabaseMaintenanceStore {
+  private readonly confirmation = inject(ConfirmationService)
   private readonly api = inject(SessionApiService)
   private readonly dashboard = inject(SessionDashboardStore)
   private readonly backupRefresh = signal(0)
@@ -32,6 +34,7 @@ export class DatabaseMaintenanceStore {
   readonly compacting = signal(false)
   readonly progress = signal<DatabaseCompactionProgress>({ state: "idle", stage: "idle", message: "" })
   readonly error = signal("")
+  readonly progressWarning = signal("")
   readonly deletingBackupID = signal<string | undefined>(undefined)
   readonly backups = computed(() => this.backupsResource.value())
   readonly steps = computed(() => {
@@ -60,9 +63,11 @@ export class DatabaseMaintenanceStore {
 
   async compactDatabase(): Promise<void> {
     if (this.compacting()) return
-    const confirmed = window.confirm(
-      "Database compaction will temporarily stop and restart the shared OpenCode service. Close other OpenCode clients first. A private backup will be kept. Continue?",
-    )
+    const confirmed = await this.confirmation.confirm({
+      title: "Compact database?",
+      message: "Compaction will temporarily stop and restart the shared OpenCode service. Close other OpenCode clients first. A private backup will be kept.",
+      confirmLabel: "Compact database",
+    })
     if (!confirmed) return
 
     const operationID = globalThis.crypto.randomUUID()
@@ -85,7 +90,12 @@ export class DatabaseMaintenanceStore {
   async deleteVerifiedBackup(backupID: string): Promise<void> {
     const backup = this.backups().find((item) => item.id === backupID)
     if (!backup?.verified) return
-    if (!window.confirm(`Permanently delete the verified database backup (${this.formatBytes(backup.sizeBytes)})?`)) return
+    if (!await this.confirmation.confirm({
+      title: "Delete database backup?",
+      message: `Permanently delete the verified database backup (${this.formatBytes(backup.sizeBytes)})? This backup will no longer be available for recovery. This cannot be undone.`,
+      confirmLabel: "Delete backup",
+      danger: true,
+    })) return
 
     this.deletingBackupID.set(backupID)
     this.error.set("")
@@ -122,7 +132,15 @@ export class DatabaseMaintenanceStore {
     this.polling = true
     try {
       while (this.compacting()) {
-        const progress = await this.api.getDatabaseCompactionProgress(operationID)
+        let progress: DatabaseCompactionProgress
+        try {
+          progress = await this.api.getDatabaseCompactionProgress(operationID)
+          this.progressWarning.set("")
+        } catch {
+          this.progressWarning.set("Unable to read progress. Maintenance may still be running; retrying…")
+          await delay(1500)
+          continue
+        }
         this.progress.set(progress)
         if (progress.state === "completed" && progress.result) {
           await this.finishCompaction(progress.result)

@@ -226,3 +226,17 @@ h1 { margin-bottom: 8px; font-size: clamp(29px, 4vw, 37px); line-height: 1.2; le
   .estimate-action-row .button { width: 100%; }
   .estimate-values { grid-template-columns: 1fr; }
 }
+
+.confirmation-dialog { width: min(460px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; overflow: auto; border: 1px solid var(--line); border-radius: 16px; color: #263445; background: white; box-shadow: 0 24px 80px #0f172a30; }
+.confirmation-dialog::backdrop { background: #0f172a66; backdrop-filter: blur(3px); }
+.confirmation-body { padding: 28px 28px 22px; }
+.confirmation-symbol { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: 20px; border-radius: 12px; background: #eff3ff; color: #4564bd; font-size: 24px; font-weight: 700; }
+.confirmation-symbol.is-danger { background: #fff0ef; color: #b8323a; }
+.confirmation-dialog h2 { margin: 8px 0 12px; font-size: 21px; letter-spacing: -.5px; }
+.confirmation-dialog #confirmation-message { margin: 0; color: #647284; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.confirmation-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding: 18px 28px; border-top: 1px solid var(--line); background: #f8fafc; }
+.confirmation-actions .button { max-width: 100%; height: auto; min-height: 36px; white-space: normal; }
+.confirmation-dialog button:focus-visible { outline: 3px solid #315fe8; outline-offset: 3px; }
+
+dialog.cleanup-modal { width: min(620px, calc(100vw - 32px)); color: inherit; }
+dialog.cleanup-modal::backdrop { background: #17212d70; backdrop-filter: blur(3px); }

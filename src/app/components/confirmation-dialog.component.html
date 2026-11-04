@@ -1,0 +1,14 @@
+<dialog #dialog class="confirmation-dialog" aria-labelledby="confirmation-title" aria-describedby="confirmation-message" (cancel)="cancel($event)">
+  @if (confirmation.request(); as request) {
+    <div class="confirmation-body">
+      <div class="confirmation-symbol" [class.is-danger]="request.danger" aria-hidden="true">{{ request.danger ? '!' : '↻' }}</div>
+      <p class="eyebrow">{{ request.danger ? 'CONFIRM DELETION' : 'DATABASE MAINTENANCE' }}</p>
+      <h2 id="confirmation-title">{{ request.title }}</h2>
+      <p id="confirmation-message">{{ request.message }}</p>
+    </div>
+    <div class="confirmation-actions">
+      <button type="button" class="button" autofocus (click)="respond(false)">Cancel</button>
+      <button type="button" class="button" [class.button-danger]="request.danger" [class.button-primary]="!request.danger" (click)="respond(true)">{{ request.confirmLabel }}</button>
+    </div>
+  }
+</dialog>

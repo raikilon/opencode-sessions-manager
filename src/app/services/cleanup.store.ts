@@ -1,6 +1,7 @@
-import { httpResource } from "@angular/common/http"
+import { HttpErrorResponse, httpResource } from "@angular/common/http"
 import { Injectable, computed, effect, inject, signal } from "@angular/core"
 import { CleanupPreview } from "../models/session.models"
+import { ConfirmationService } from "./confirmation.service"
 import { SessionApiService } from "./session-api.service"
 import { SessionDashboardStore } from "./session-dashboard.store"
 import { SessionPreferencesService } from "./session-preferences.service"
@@ -20,6 +21,7 @@ const EMPTY_CLEANUP: CleanupPreview = {
 
 @Injectable({ providedIn: "root" })
 export class CleanupStore {
+  private readonly confirmation = inject(ConfirmationService)
   private readonly api = inject(SessionApiService)
   private readonly dashboard = inject(SessionDashboardStore)
   private readonly preferences = inject(SessionPreferencesService)
@@ -52,7 +54,6 @@ export class CleanupStore {
     const preview = this.preview()
     if (!preview) return
     this.selectedIDs.set(preview.candidates.flatMap((candidate) => candidate.affectedIDs))
-    this.actionError.set("")
   })
 
   setRetentionDays(days: number): void {
@@ -84,7 +85,12 @@ export class CleanupStore {
     const sessionIDs = this.selectedIDs()
     if (!preview || sessionIDs.length === 0) return
     const days = this.retentionDays()
-    if (!window.confirm(`Permanently delete ${sessionIDs.length} conversation${sessionIDs.length === 1 ? "" : "s"} older than ${days} days? This cannot be undone.`)) return
+    if (!await this.confirmation.confirm({
+      title: "Delete selected conversations?",
+      message: `Permanently delete ${sessionIDs.length} conversation${sessionIDs.length === 1 ? "" : "s"} older than ${days} days? This cannot be undone.`,
+      confirmLabel: `Delete ${sessionIDs.length} conversation${sessionIDs.length === 1 ? "" : "s"}`,
+      danger: true,
+    })) return
 
     this.deleting.set(true)
     this.actionError.set("")
@@ -95,13 +101,20 @@ export class CleanupStore {
       this.dashboard.clearContentSearch()
       this.dashboard.refreshSessions()
     } catch (error) {
-      this.actionError.set(this.errorMessage(error))
+      const details = error instanceof HttpErrorResponse ? error.error : undefined
+      const deleted = typeof details?.deletedSessions === "number" ? details.deletedSessions : 0
+      this.actionError.set(`${deleted > 0 ? `Deleted ${deleted} conversation${deleted === 1 ? "" : "s"} before cleanup stopped. ` : ""}${this.errorMessage(error)} Review the refreshed list before retrying.`)
+      this.selectedIDs.set([])
+      this.dashboard.clearContentSearch()
+      this.dashboard.refreshSessions()
+      this.previewResource.reload()
     } finally {
       this.deleting.set(false)
     }
   }
 
   private errorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse && typeof error.error?.error === "string") return error.error.error
     return error instanceof Error ? error.message : "Cleanup failed."
   }
 }

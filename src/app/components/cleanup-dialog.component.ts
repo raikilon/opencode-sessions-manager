@@ -1,4 +1,4 @@
-import { Component, input, output } from "@angular/core"
+import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, input, output } from "@angular/core"
 import { CleanupPreview, Session } from "../models/session.models"
 
 @Component({
@@ -6,7 +6,22 @@ import { CleanupPreview, Session } from "../models/session.models"
   standalone: true,
   templateUrl: "./cleanup-dialog.component.html",
 })
-export class CleanupDialogComponent {
+export class CleanupDialogComponent implements AfterViewInit, OnDestroy {
+  @ViewChild("dialog", { static: true }) private dialog!: ElementRef<HTMLDialogElement>
+  private previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined
+
+  ngAfterViewInit(): void { this.dialog.nativeElement.showModal() }
+
+  ngOnDestroy(): void {
+    this.dialog.nativeElement.close()
+    if (this.previousFocus?.isConnected) this.previousFocus.focus()
+  }
+
+  onCancel(event: Event): void {
+    event.preventDefault()
+    if (!this.loading()) this.close.emit()
+  }
+
   readonly preview = input.required<CleanupPreview>()
   readonly days = input(30)
   readonly selectedIDs = input<string[]>([])

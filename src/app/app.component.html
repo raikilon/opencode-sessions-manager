@@ -42,6 +42,7 @@
       <div>
         <h2>Connect to your local OpenCode</h2>
         <p>The dashboard uses OpenCode’s local service. It won’t read or change conversation data until you connect.</p>
+        <p><strong>Requires OpenCode 2.x.</strong> OpenCode 1.x and older are not supported. Check with <code>opencode --version</code> in your terminal. If you have an older version, upgrade to OpenCode 2 and restart Session Keeper before connecting.</p>
         @if (dashboard.error()) { <p class="inline-error">{{ dashboard.error() }}</p> }
         <button class="button button-primary" (click)="dashboard.connect()" [disabled]="dashboard.connecting()">
           {{ dashboard.connecting() ? 'Connecting…' : 'Connect to OpenCode' }}
@@ -137,6 +138,7 @@
     <div class="modal-backdrop" role="presentation">
       <section class="maintenance-modal" role="dialog" aria-modal="true" aria-labelledby="maintenance-title">
         <div class="maintenance-heading"><span class="spinner"></span><div><h2 id="maintenance-title">Compacting database</h2><p>{{ maintenance.progress().message || 'Preparing maintenance…' }}</p></div></div>
+        @if (maintenance.progressWarning()) { <p role="status">{{ maintenance.progressWarning() }}</p> }
         <ol class="maintenance-steps" aria-label="Database compaction steps">
           @for (step of maintenance.steps(); track step.id) {
             <li [class.step-done]="step.state === 'done'" [class.step-active]="step.state === 'active'" [class.step-failed]="step.state === 'failed'">
@@ -151,3 +153,6 @@
     </div>
   }
 </main>
+@if (confirmation.request()) {
+  <app-confirmation-dialog />
+}

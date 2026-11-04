@@ -67,8 +67,19 @@ export async function getDatabaseFootprintAt(databasePath: string) {
 }
 
 export function getDatabasePath(): Promise<string> {
+  const override = process.env.OPENCODE_DB?.trim()
+  if (override) {
+    if (override === ":memory:") return Promise.reject(new Error("OpenCode does not have a file-backed database path."))
+    return Promise.resolve(resolve(override))
+  }
   if (!databasePathPromise) {
-    databasePathPromise = execFileAsync("opencode", ["debug", "paths", "db"], {
+    // npm installs a .cmd launcher on Windows, which requires the command shell.
+    // Keep the shell command constant; database overrides never enter the shell.
+    const command = process.platform === "win32" ? (process.env.ComSpec || "cmd.exe") : "opencode"
+    const args = process.platform === "win32"
+      ? ["/d", "/s", "/c", "opencode debug paths db"]
+      : ["debug", "paths", "db"]
+    databasePathPromise = execFileAsync(command, args, {
       encoding: "utf8",
       timeout: 5000,
     }).then(({ stdout }) => {

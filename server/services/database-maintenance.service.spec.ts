@@ -18,6 +18,22 @@ describe("DatabaseMaintenanceService", () => {
     await rm(temporaryDirectory, { recursive: true, force: true })
   })
 
+  it("releases the maintenance lock after an early connection failure", async () => {
+    const provider = { ...createClientProvider({}, []), getClient: async () => undefined }
+    const service = new DatabaseMaintenanceService(provider)
+    await expect(service.compactDatabase("first")).rejects.toThrow("Connect to OpenCode")
+    expect(service.getProgress().state).toBe("failed")
+    await expect(service.compactDatabase("retry")).rejects.toThrow("Connect to OpenCode")
+    expect(service.getProgress().operationID).toBe("retry")
+  })
+
+  it("releases the maintenance lock after database discovery fails", async () => {
+    const service = new DatabaseMaintenanceService(createClientProvider({}, []), async () => { throw new Error("Missing database") })
+    await expect(service.compactDatabase("first")).rejects.toThrow("Missing database")
+    expect(service.getProgress().state).toBe("failed")
+    await expect(service.compactDatabase("retry")).rejects.toThrow("Missing database")
+  })
+
   it("backs up and compacts a database, then restarts OpenCode", async () => {
     const databasePath = join(temporaryDirectory, "opencode.db")
     const database = new Database(databasePath)

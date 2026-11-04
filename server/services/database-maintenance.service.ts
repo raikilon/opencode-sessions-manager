@@ -128,26 +128,28 @@ export class DatabaseMaintenanceService {
     this.setProgress("running", "checking-active-sessions", "Checking for active OpenCode sessions…", undefined, undefined, undefined, operationID)
     await this.yieldForProgress()
 
-    const client = await this.requireClient()
-    const activeSessions = Object.keys(await client.session.active()).length
-    if (activeSessions > 0) {
-      this.setProgress("blocked", "blocked", `${activeSessions} OpenCode session${activeSessions === 1 ? " is" : "s are"} active.`, undefined, undefined, undefined, operationID)
-      return { kind: "active-sessions", activeSessions }
-    }
-
-    await this.report("locating-database", "Locating the OpenCode database…", 100)
-    const databasePath = await this.resolvePath()
-    const before = await this.readFootprint(databasePath)
-    if (!before.available || before.databaseBytes === null || before.totalBytes === null) {
-      throw new Error("OpenCode database file was not found or could not be measured.")
-    }
-    await this.report("counting-conversations", "Checking that conversations are preserved…", 100)
-    const beforeConversations = (await getAllSessions(client, { archived: "all" })).length
-    const backupPath = await this.createBackupPath(databasePath)
-    const backupID = basename(backupPath)
+    let backupPath: string | undefined
+    let backupID: string | undefined
     let serviceStopped = false
-
     try {
+      const client = await this.requireClient()
+      const activeSessions = Object.keys(await client.session.active()).length
+      if (activeSessions > 0) {
+        this.setProgress("blocked", "blocked", `${activeSessions} OpenCode session${activeSessions === 1 ? " is" : "s are"} active.`, undefined, undefined, undefined, operationID)
+        return { kind: "active-sessions", activeSessions }
+      }
+
+      await this.report("locating-database", "Locating the OpenCode database…", 100)
+      const databasePath = await this.resolvePath()
+      const before = await this.readFootprint(databasePath)
+      if (!before.available || before.databaseBytes === null || before.totalBytes === null) {
+        throw new Error("OpenCode database file was not found or could not be measured.")
+      }
+      await this.report("counting-conversations", "Checking that conversations are preserved…", 100)
+      const beforeConversations = (await getAllSessions(client, { archived: "all" })).length
+      backupPath = await this.createBackupPath(databasePath)
+      backupID = basename(backupPath)
+
       await this.report("stopping-service", "Stopping the shared OpenCode service…")
       await this.clientService.stopForMaintenance()
       serviceStopped = true
@@ -200,7 +202,7 @@ export class DatabaseMaintenanceService {
           restartError = restartFailure
         }
       }
-      const backupExists = await stat(backupPath).then(() => true).catch(() => false)
+      const backupExists = backupPath ? await stat(backupPath).then(() => true).catch(() => false) : false
       const backupMessage = backupExists ? `Backup retained at ${backupPath}.` : "No backup was created."
       const message = `Database compaction failed. ${errorMessage(error)} ${backupMessage}${restartError ? ` OpenCode also failed to restart: ${errorMessage(restartError)}` : ""}`
       this.setProgress("failed", failedStage, message, backupExists ? backupID : undefined, message, undefined, operationID)
