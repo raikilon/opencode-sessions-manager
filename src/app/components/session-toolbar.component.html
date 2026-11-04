@@ -1,0 +1,54 @@
+<section class="toolbar" aria-label="Session search and filters">
+  <form class="search-form" (ngSubmit)="searchRequested.emit()">
+    <div class="search-mode" role="group" aria-label="Search type">
+      <button type="button" [class.mode-active]="searchMode() === 'title'" (click)="changeMode('title')">Titles</button>
+      <button type="button" [class.mode-active]="searchMode() === 'content'" (click)="changeMode('content')">Conversation text</button>
+    </div>
+    <div class="search-input-wrap">
+      <span class="search-icon" aria-hidden="true">⌕</span>
+      <input
+        aria-label="Search query"
+        [placeholder]="searchMode() === 'title' ? 'Search session titles…' : 'Search prompts and replies…'"
+        [ngModel]="searchText()"
+        (ngModelChange)="searchTextChange.emit($event)"
+        name="searchText"
+      />
+      @if (searchText()) {
+        <button class="clear-search" type="button" aria-label="Clear search" (click)="clearRequested.emit()">×</button>
+      }
+    </div>
+    <button class="button button-primary search-button" type="submit" [disabled]="searching()">
+      {{ searching() ? 'Searching…' : 'Search' }}
+    </button>
+  </form>
+  <div class="filter-row">
+    <label class="filter-select">
+      <span>Project</span>
+      <select [ngModel]="projectFilter()" (ngModelChange)="projectFilterChange.emit($event)" name="projectFilter">
+        <option value="all">All projects</option>
+        @for (project of projects(); track project.id) {
+          <option [value]="project.id">{{ project.name || project.canonical }}</option>
+        }
+      </select>
+    </label>
+    <label class="filter-select">
+      <span>Archive</span>
+      <select [ngModel]="archiveFilter()" (ngModelChange)="archiveFilterChange.emit($event)" name="archiveFilter">
+        <option value="false">Not archived</option>
+        <option value="true">Archived</option>
+        <option value="all">All sessions</option>
+      </select>
+    </label>
+    @if (showAgeFilter()) {
+      <label class="filter-select">
+        <span>Last active</span>
+        <select [ngModel]="ageFilter()" (ngModelChange)="ageFilterChange.emit($event)" name="ageFilter">
+          <option value="all">Any time</option>
+          <option value="7">Last 7 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+      </label>
+    }
+  </div>
+</section>

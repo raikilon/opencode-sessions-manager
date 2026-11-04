@@ -1,0 +1,63 @@
+<div class="modal-backdrop" role="presentation" (mousedown)="onBackdrop($event)">
+  <section class="cleanup-modal" role="dialog" aria-modal="true" aria-labelledby="cleanup-title">
+    <div class="modal-heading">
+      <div>
+        <p class="eyebrow">RETENTION REVIEW</p>
+        <h2 id="cleanup-title">Conversations older than {{ days() }} days</h2>
+      </div>
+      <button class="icon-button" aria-label="Close cleanup review" [disabled]="loading()" (click)="close.emit()">×</button>
+    </div>
+    <p class="modal-description">Nothing is deleted automatically. Review the conversations and confirm to permanently remove selected ones.</p>
+    <div class="cleanup-summary">
+      <strong>{{ preview().eligibleCount }}</strong>
+      <span>eligible conversations of {{ preview().totalSessions }} total conversations</span>
+    </div>
+    @if (preview().protectedCount > 0) {
+      <p class="protected-note">{{ preview().protectedCount }} conversation{{ preview().protectedCount === 1 ? ' was' : 's were' }} kept because it is newer, active, or linked to a newer/active child.</p>
+    }
+    @if (conversations().length === 0) {
+      <div class="empty-state">
+        <span class="empty-icon" aria-hidden="true">⌕</span>
+        <h3>No cleanup candidates</h3>
+        <p>No inactive conversations are old enough to delete.</p>
+      </div>
+    } @else {
+      <div class="cleanup-list">
+        @for (conversation of conversations(); track conversation.id) {
+          <label class="cleanup-item">
+            <input type="checkbox" [checked]="selectedIDs().includes(conversation.id)" (change)="toggle(conversation.id, $event)" />
+            <span class="cleanup-item-copy">
+              <strong>{{ conversation.title || 'Untitled conversation' }}</strong>
+              <small>{{ conversation.location.directory }} · updated {{ formatDate(conversation.time.updated) }}</small>
+            </span>
+          </label>
+        }
+      </div>
+      <section class="storage-estimate" aria-label="Estimated storage impact">
+        <div class="estimate-heading"><strong>Storage impact</strong><span>for the selected conversations</span></div>
+        <div class="estimate-values">
+          <div>
+            <span>Selected conversations</span>
+            <strong>{{ selectedConversationCount() }}</strong>
+          </div>
+          <div>
+            <span>Current database footprint (DB + WAL)</span>
+            <strong>{{ formatBytes(preview().database.totalBytes) }}</strong>
+          </div>
+          <div>
+            <span>Likely footprint after deletion</span>
+            <strong>{{ preview().database.available ? '≈ ' + formatBytes(preview().database.totalBytes) : 'Unavailable' }}</strong>
+          </div>
+        </div>
+        <p class="estimate-caveat">This quick estimate uses file sizes only; it does not read conversation messages. SQLite usually reuses freed pages rather than shrinking the database file, so its on-disk size will likely stay close to the current footprint. A WAL checkpoint may change it.</p>
+      </section>
+    }
+    @if (error()) { <p class="inline-error">{{ error() }}</p> }
+    <div class="modal-actions">
+      <button class="button button-secondary" (click)="close.emit()" [disabled]="loading()">Cancel</button>
+      <button class="button button-danger" (click)="delete.emit()" [disabled]="loading() || selectedIDs().length === 0">
+        {{ loading() ? 'Deleting…' : 'Delete ' + selectedConversationCount() + ' conversation' + (selectedConversationCount() === 1 ? '' : 's') }}
+      </button>
+    </div>
+  </section>
+</div>

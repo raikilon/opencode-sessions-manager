@@ -1,0 +1,50 @@
+<section class="overview-cards" aria-label="Session and database totals">
+  <article class="overview-card">
+    <span class="overview-label">TOTAL CONVERSATIONS</span>
+    <strong>{{ totalSessions().toLocaleString() }}</strong>
+    <span class="overview-note">Across projects, including archived and child sessions</span>
+  </article>
+  <article class="overview-card database-card">
+    <span class="overview-label">DATABASE ON DISK</span>
+    <strong>{{ database()?.available ? formatBytes(database()?.totalBytes) : 'Unavailable' }}</strong>
+    <span class="overview-note">
+      @if (database()?.available) {
+        DB {{ formatBytes(database()?.databaseBytes) }} + WAL {{ formatBytes(database()?.walBytes) }} · {{ database()?.source }}
+      } @else {
+        Set OPENCODE_DB if OpenCode uses a custom database path
+      }
+    </span>
+    @if (database()?.available) {
+      <button class="button button-secondary compact-button" (click)="compactRequested.emit()" [disabled]="compacting()">
+        {{ compacting() ? 'Compacting database…' : 'Compact database' }}
+      </button>
+    }
+    @if (compacting() && compactionMessage()) {
+      <span class="overview-note compaction-progress">{{ compactionMessage() }}</span>
+    }
+    @if (backups().length > 0) {
+      <div class="backup-list">
+        <strong class="backup-list-heading">Database backups</strong>
+        @for (backup of backups(); track backup.id) {
+          <div class="backup-row">
+            <span class="backup-copy">
+              <span>{{ formatBytes(backup.sizeBytes) }} · {{ formatDate(backup.createdAt) }}</span>
+              @if (backup.verified) {
+                <small>Verified · {{ backup.verifiedConversationCount }} conversations intact</small>
+              } @else {
+                <small>Not verified; kept for recovery</small>
+              }
+            </span>
+            @if (backup.verified) {
+              <button
+                class="text-button backup-delete"
+                [disabled]="deletingBackupID() === backup.id"
+                (click)="deleteBackupRequested.emit(backup.id)"
+              >{{ deletingBackupID() === backup.id ? 'Deleting…' : 'Delete backup' }}</button>
+            }
+          </div>
+        }
+      </div>
+    }
+  </article>
+</section>

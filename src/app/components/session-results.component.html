@@ -1,0 +1,105 @@
+<section class="results-section">
+  @if (contentMatches(); as matches) {
+    <div class="list-heading">
+      <div>
+        <h2>Conversation matches</h2>
+        <p>{{ matches.length }} matching session{{ matches.length === 1 ? '' : 's' }}</p>
+      </div>
+      <button class="text-button" (click)="backToSessions.emit()">Back to sessions</button>
+    </div>
+    @if (matches.length === 0) {
+      <div class="empty-state">
+        <span class="empty-icon" aria-hidden="true">⌕</span>
+        <h3>No matching conversations</h3>
+        <p>Try a different phrase or expand the project/archive filters.</p>
+      </div>
+    } @else {
+      <div class="session-list">
+        @for (match of matches; track match.sessionID) {
+          <article class="session-card match-card">
+            <div class="session-main">
+              <div class="session-title-row">
+                <h3>{{ match.title }}</h3>
+                @if (sessionFor(match.sessionID)?.parentID) { <span class="tag">Child session</span> }
+              </div>
+              <div class="session-meta">
+                <span class="project-chip">{{ projectLabel(match.projectID, match.directory) }}</span>
+                <span>{{ match.directory }}</span>
+                <span>Updated {{ formatDate(match.updated) }}</span>
+              </div>
+              <div class="snippets">
+                @for (snippet of match.snippets; track $index) { <p>{{ snippet }}</p> }
+              </div>
+            </div>
+            @if (sessionFor(match.sessionID); as session) {
+              <button
+                class="delete-button"
+                [title]="isBlocked(session.id) ? 'Stop active sessions before deleting' : 'Delete session'"
+                [attr.aria-label]="'Delete ' + (session.title || 'session')"
+                [disabled]="isBlocked(session.id)"
+                (click)="deleteRequested.emit(session)"
+              >
+                <span aria-hidden="true">⌫</span>
+                <span>Delete{{ childCounts()[session.id] ? ' · ' + (childCounts()[session.id] + 1) : '' }}</span>
+              </button>
+            }
+          </article>
+        }
+      </div>
+    }
+  } @else {
+    <div class="list-heading">
+      <div>
+        <h2>Sessions</h2>
+        @if (loading()) {
+          <p>Loading conversations…</p>
+        } @else if (sessions().length === totalConversations()) {
+          <p>{{ totalConversations() }} conversations</p>
+        } @else {
+          <p>Showing {{ sessions().length }} of {{ totalConversations() }} conversations</p>
+        }
+      </div>
+      <button class="icon-button" title="Refresh sessions" aria-label="Refresh sessions" (click)="refreshRequested.emit()" [disabled]="loading()">↻</button>
+    </div>
+    @if (loading() && sessions().length === 0) {
+      <div class="empty-state"><span class="spinner"></span><p>Loading sessions…</p></div>
+    } @else if (sessions().length === 0) {
+      <div class="empty-state">
+        <span class="empty-icon" aria-hidden="true">⌕</span>
+        <h3>No sessions found</h3>
+        <p>{{ titleSearch() ? 'Try a different title or clear the search.' : 'Sessions matching these filters will appear here.' }}</p>
+      </div>
+    } @else {
+      <div class="session-list">
+        @for (session of sessions(); track session.id) {
+          <article class="session-card">
+            <div class="session-main">
+              <div class="session-title-row">
+                <span class="activity-dot" [class.activity-active]="activeIDs().includes(session.id)" [title]="activeIDs().includes(session.id) ? 'Active' : 'Inactive'"></span>
+                <h3>{{ session.title || 'Untitled session' }}</h3>
+                @if (session.parentID) { <span class="tag">Child session</span> }
+                @if (session.time.archived) { <span class="tag tag-muted">Archived</span> }
+              </div>
+              <div class="session-meta">
+                <span class="project-chip">{{ projectLabel(session.projectID, session.location.directory) }}</span>
+                <span class="path-text">{{ session.location.directory }}</span>
+                <span>Updated {{ formatDate(session.time.updated) }}</span>
+              </div>
+              <div class="session-id">{{ session.id }}</div>
+            </div>
+            <button
+              class="delete-button"
+              [title]="isBlocked(session.id) ? 'Stop active sessions before deleting' : 'Delete session'"
+              [attr.aria-label]="'Delete ' + (session.title || 'session')"
+              [disabled]="isBlocked(session.id)"
+              (click)="deleteRequested.emit(session)"
+            >
+              <span aria-hidden="true">⌫</span>
+              <span>Delete{{ childCounts()[session.id] ? ' · ' + (childCounts()[session.id] + 1) : '' }}</span>
+            </button>
+          </article>
+        }
+      </div>
+    }
+  }
+</section>

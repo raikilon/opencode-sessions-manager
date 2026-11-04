@@ -1,0 +1,153 @@
+<main class="app-shell">
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="OpenCode Sessions home" (click)="$event.preventDefault()">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>Session Keeper</span>
+    </a>
+    <div class="connection" [class.is-connected]="dashboard.connected()">
+      <span class="status-dot"></span>
+      @if (dashboard.connected()) {
+        Connected{{ dashboard.version() ? ' · v' + dashboard.version() : '' }}
+      } @else if (dashboard.serviceAvailable()) {
+        Local service available
+      } @else {
+        OpenCode not connected
+      }
+    </div>
+  </header>
+
+  <section class="page-heading">
+    <div>
+      <p class="eyebrow">LOCAL SESSION LIBRARY</p>
+      <h1>Your OpenCode conversations</h1>
+      <p class="subtitle">Find conversations across your projects. Review before deleting anything.</p>
+    </div>
+    @if (dashboard.connected()) {
+      <div class="retention-control">
+        <label for="retention-days">Cleanup older than</label>
+        <div class="retention-input">
+          <input id="retention-days" type="number" min="1" max="3650" [value]="cleanup.retentionDays()" (input)="cleanup.setRetentionDays(+$any($event.target).value)" />
+          <span>days</span>
+          <button class="button button-danger" (click)="cleanup.openPreview()" [disabled]="cleanup.loading() || cleanup.deleting() || maintenance.compacting()">
+            {{ cleanup.loading() ? 'Checking…' : 'Review cleanup' }}
+          </button>
+        </div>
+      </div>
+    }
+  </section>
+
+  @if (!dashboard.connected()) {
+    <section class="connect-card">
+      <div class="connect-icon" aria-hidden="true">⌘</div>
+      <div>
+        <h2>Connect to your local OpenCode</h2>
+        <p>The dashboard uses OpenCode’s local service. It won’t read or change conversation data until you connect.</p>
+        @if (dashboard.error()) { <p class="inline-error">{{ dashboard.error() }}</p> }
+        <button class="button button-primary" (click)="dashboard.connect()" [disabled]="dashboard.connecting()">
+          {{ dashboard.connecting() ? 'Connecting…' : 'Connect to OpenCode' }}
+        </button>
+      </div>
+    </section>
+  } @else {
+    <app-overview-cards
+      [totalSessions]="dashboard.totalSessions()"
+      [database]="dashboard.database()"
+      [compacting]="maintenance.compacting()"
+      [compactionMessage]="maintenance.progress().message"
+      [backups]="maintenance.backups()"
+      [deletingBackupID]="maintenance.deletingBackupID()"
+      (compactRequested)="maintenance.compactDatabase()"
+      (deleteBackupRequested)="maintenance.deleteVerifiedBackup($event)"
+    />
+    <app-session-toolbar
+      [projects]="dashboard.projects()"
+      [projectFilter]="dashboard.projectFilter()"
+      [archiveFilter]="dashboard.archiveFilter()"
+      [ageFilter]="dashboard.ageFilter()"
+      [searchMode]="dashboard.searchMode()"
+      [searchText]="dashboard.searchText()"
+      [searching]="dashboard.contentSearching()"
+      [showAgeFilter]="dashboard.contentMatches() === undefined"
+      (projectFilterChange)="dashboard.changeProject($event)"
+      (archiveFilterChange)="dashboard.changeArchive($event)"
+      (ageFilterChange)="dashboard.ageFilter.set($event)"
+      (searchModeChange)="dashboard.changeSearchMode($event)"
+      (searchTextChange)="dashboard.searchText.set($event)"
+      (searchRequested)="dashboard.search()"
+      (clearRequested)="dashboard.clearSearch()"
+    />
+
+    @if (dashboard.error()) {
+      <div class="alert alert-error" role="alert"><span>{{ dashboard.error() }}</span><button (click)="dashboard.dismissError()" aria-label="Dismiss error">×</button></div>
+    }
+    @if (cleanup.error()) {
+      <div class="alert alert-error" role="alert"><span>{{ cleanup.error() }}</span><button (click)="cleanup.dismissError()" aria-label="Dismiss cleanup error">×</button></div>
+    }
+    @if (maintenance.error()) {
+      <div class="alert alert-error" role="alert"><span>{{ maintenance.error() }}</span><button (click)="maintenance.dismissError()" aria-label="Dismiss maintenance error">×</button></div>
+    }
+    @if (dashboard.notice()) {
+      <div class="alert alert-success" role="status"><span>{{ dashboard.notice() }}</span><button (click)="dashboard.notice.set('')" aria-label="Dismiss message">×</button></div>
+    }
+    @if (dashboard.searchMode() === 'content' && dashboard.contentMatches() === undefined && !dashboard.contentSearching()) {
+      <p class="search-note">Conversation search scans user prompts and assistant replies across matching conversations. It can take a while for a large history; reasoning and tool output are not searched.</p>
+    }
+    @if (dashboard.contentSearchWarning()) {
+      <div class="alert alert-error" role="status"><span>{{ dashboard.contentSearchWarning() }}</span></div>
+    }
+    @if (dashboard.contentSearching()) {
+      <div class="search-progress"><span class="spinner"></span> Searching conversation text across your matching conversations…</div>
+    }
+    @if (!dashboard.contentSearching()) {
+      <app-session-results
+        [sessions]="dashboard.visibleSessions()"
+        [totalConversations]="dashboard.totalSessions()"
+        [activeIDs]="dashboard.activeIDs()"
+        [projects]="dashboard.projects()"
+        [contentMatches]="dashboard.contentMatches()"
+        [loading]="dashboard.sessionsLoading()"
+        [titleSearch]="dashboard.titleSearch()"
+        [childCounts]="dashboard.childCounts()"
+        [blockedIDs]="dashboard.blockedIDs()"
+        (refreshRequested)="dashboard.refreshSessions()"
+        (backToSessions)="dashboard.clearContentSearch()"
+        (deleteRequested)="dashboard.deleteSession($event)"
+      />
+    }
+  }
+
+  <footer class="footer"><span>Runs on this machine only</span><span>Conversation data stays in OpenCode</span></footer>
+
+  @if (cleanup.preview(); as preview) {
+    <app-cleanup-dialog
+      [preview]="preview"
+      [days]="cleanup.retentionDays()"
+      [selectedIDs]="cleanup.selectedIDs()"
+      [loading]="cleanup.deleting()"
+      [error]="cleanup.error()"
+      (close)="cleanup.closePreview()"
+      (selectedIDsChange)="cleanup.updateSelection($event)"
+      (delete)="cleanup.deleteSelected()"
+    />
+  }
+  @if (cleanup.loading() && !cleanup.preview()) {
+    <div class="modal-backdrop"><section class="checking-modal"><span class="spinner"></span><p>Checking all conversations against the retention period…</p></section></div>
+  }
+  @if (maintenance.compacting()) {
+    <div class="modal-backdrop" role="presentation">
+      <section class="maintenance-modal" role="dialog" aria-modal="true" aria-labelledby="maintenance-title">
+        <div class="maintenance-heading"><span class="spinner"></span><div><h2 id="maintenance-title">Compacting database</h2><p>{{ maintenance.progress().message || 'Preparing maintenance…' }}</p></div></div>
+        <ol class="maintenance-steps" aria-label="Database compaction steps">
+          @for (step of maintenance.steps(); track step.id) {
+            <li [class.step-done]="step.state === 'done'" [class.step-active]="step.state === 'active'" [class.step-failed]="step.state === 'failed'">
+              <span class="step-marker" aria-hidden="true">{{ step.state === 'done' ? '✓' : step.state === 'failed' ? '!' : '' }}</span>
+              <span>{{ step.label }}</span>
+              @if (step.state === 'active') { <span class="step-status">In progress</span> }
+              @if (step.state === 'failed') { <span class="step-status">Needs attention</span> }
+            </li>
+          }
+        </ol>
+      </section>
+    </div>
+  }
+</main>
